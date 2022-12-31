@@ -1,0 +1,153 @@
+<?php
+//error_reporting(0);
+defined('BASEPATH') or exit('No direct script access allowed');
+require APPPATH . '/libraries/REST_Controller.php';
+require_once $_SERVER['DOCUMENT_ROOT'].'/vendor/autoload.php';
+date_default_timezone_set('Asia/Jakarta');
+class Duitku extends REST_Controller
+{
+     public function __construct()
+    {
+        parent::__construct();
+        $this->load->helper("url");
+        $this->load->database();
+        $this->load->model('Duitku_model');
+        $this->load->model('Pelanggan_model');
+        date_default_timezone_set('Asia/Jakarta');
+    }
+    function index_get(){
+        $this->response("Rest Api Gojasa!", 200);
+    }
+    //---------------------------------------- List Metode Pembayaran ----------------------------
+    function ListPayment_post(){
+        //config
+        $datasetting = $this->Duitku_model->datamerchant()->row();
+        $merchantCode = $datasetting->duitku_merchant;
+        $merchantKey = $datasetting->duitku_key;
+        $duitkuConfig = new \Duitku\Config($merchantKey, $merchantCode);
+        $duitkuConfig->setSandboxMode(true);
+        $duitkuConfig->setSanitizedMode(true);
+        $duitkuConfig->setDuitkuLogs(true);
+        //request
+        $json   = file_get_contents('php://input');
+        $result = json_decode($json);
+        $paymentAmount  = $result->{'paymentAmount'};
+        $paymentMethodList = \Duitku\Api::getPaymentMethod($paymentAmount, $duitkuConfig);
+        header('Content-Type: application/json');
+        $this->response(json_decode($paymentMethodList), 200);
+    }
+    //----------------------------------- Request Pembayaran ------------------------------------
+    function RequestTransaction_post(){
+        //config
+        $datasetting = $this->Duitku_model->datamerchant()->row();
+        $merchantCode = $datasetting->duitku_merchant;
+        $merchantKey = $datasetting->duitku_key;
+        $duitkuConfig = new \Duitku\Config($merchantKey, $merchantCode);
+        $duitkuConfig->setSandboxMode(true);
+        $duitkuConfig->setSanitizedMode(true);
+        $duitkuConfig->setDuitkuLogs(true);
+        //request
+        $json   = file_get_contents('php://input');
+        $result = json_decode($json);
+        $params = array(
+            'paymentAmount'     => $result->{'paymentAmount'},
+            'paymentMethod'     => $result->{'paymentMethod'},
+            'merchantOrderId'   => $result->{'merchantOrderId'},
+            'productDetails'    => $result->{'productDetails'},
+            'additionalParam'   => $result->{'additionalParam'},
+            'merchantUserInfo'  => $result->{'merchantUserInfo'},
+            'customerVaName'    => $result->{'customerVaName'},
+            'email'             => $result->{'email'},
+            'phoneNumber'       => $result->{'phoneNumber'},
+            'itemDetails'       => $result->{'itemDetails'},
+            'customerDetail'    => $result->{'customerDetail'},
+            'callbackUrl'       => 'http://192.168.1.100/api/duitku/callback',
+            'returnUrl'         => 'http://192.168.1.100/api/duitku',
+            'expiryPeriod'      => $result->{'expiryPeriod'}
+        );
+        // createInvoice Request
+        $responseDuitkuApi = \Duitku\Api::createInvoice($params, $duitkuConfig);
+        header('Content-Type: application/json');
+        $responseDuitku = json_decode($responseDuitkuApi);
+        $this->response($responseDuitku, 200);
+    }
+    //----------------------------------- Cek Pembayaran ------------------------------------
+    function CheckTransaction_post(){
+        //config
+        $datasetting = $this->Duitku_model->datamerchant()->row();
+        $merchantCode = $datasetting->duitku_merchant;
+        $merchantKey = $datasetting->duitku_key;
+        $duitkuConfig = new \Duitku\Config($merchantKey, $merchantCode);
+        $duitkuConfig->setSandboxMode(true);
+        $duitkuConfig->setSanitizedMode(true);
+        $duitkuConfig->setDuitkuLogs(true);
+        //request
+        $json   = file_get_contents('php://input');
+        $result = json_decode($json);
+        $merchantOrderId = $result->{'merchantOrderId'};
+        $transactionList = \Duitku\Api::transactionStatus($merchantOrderId, $duitkuConfig);
+        header('Content-Type: application/json');
+        $transaction = json_decode($transactionList);
+        $this->response($transaction, 200);
+        if ($transaction->statusCode == "00") {
+            // Action Success
+        } else if ($transaction->statusCode == "01") {
+            // Action Pending
+        } else {
+            // Action Failed Or Expired
+        }
+    }
+    //----------------------------------- Callback ------------------------------------
+    function callback_post(){
+        //config
+        $datasetting = $this->Duitku_model->datamerchant()->row();
+        $merchantCode = $datasetting->duitku_merchant;
+        $merchantKey = $datasetting->duitku_key;
+        $duitkuConfig = new \Duitku\Config($merchantKey, $merchantCode);
+        $duitkuConfig->setSandboxMode(true);
+        $duitkuConfig->setSanitizedMode(true);
+        $duitkuConfig->setDuitkuLogs(true);
+        //request
+        try{
+            $callback = \Duitku\Api::callback($duitkuConfig);
+            header('Content-Type: application/json');
+            $notif = json_decode($callback);
+            $this->response($notif, 200);
+            echo $notif;
+            if ($notif->resultCode == "00") {
+                // Action Success
+            } else if ($notif->resultCode == "01") {
+                // Action Failed
+            }
+        } catch (Exception $e) {
+            $this->response("Error Server", 400);
+        }
+        
+    }
+    function testcallback_get(){
+        //config
+        $datasetting = $this->Duitku_model->datamerchant()->row();
+        $merchantCode = $datasetting->duitku_merchant;
+        $merchantKey = $datasetting->duitku_key;
+        $duitkuConfig = new \Duitku\Config($merchantKey, $merchantCode);
+        $duitkuConfig->setSandboxMode(true);
+        $duitkuConfig->setSanitizedMode(true);
+        $duitkuConfig->setDuitkuLogs(true);
+        //request
+        try{
+            $callback = \Duitku\Api::callback($duitkuConfig);
+            header('Content-Type: application/json');
+            $notif = json_decode($callback);
+            $this->response($notif, 200);
+            echo $notif;
+            if ($notif->resultCode == "00") {
+                // Action Success
+            } else if ($notif->resultCode == "01") {
+                // Action Failed
+            }
+        } catch (Exception $e) {
+            $this->response("Error Server", 400);
+        }
+    }
+}
+?>

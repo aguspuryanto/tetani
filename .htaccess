@@ -1,0 +1,13 @@
+#RewriteEngine On
+#RewriteCond %{HTTP:Authorization} ^(.*)
+#RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+#RewriteCond %{REQUEST_FILENAME} !-f
+#RewriteCond %{REQUEST_FILENAME} !-d
+#RewriteRule ^(.*)$ index.php/$1 [L]
+#AddHandler file-httacess .htaccess
+
+RewriteEngine On
+#RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule (.*) index.php/$1
